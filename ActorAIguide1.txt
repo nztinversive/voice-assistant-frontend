@@ -1,0 +1,202 @@
+# AI-Driven Theatrical Script Reading
+
+This guide outlines the key steps to build an AI-driven application for actors to practice lines and receive AI-generated responses.
+
+## Step 3.1: PDF Parsing and Role Selection
+
+### Parse Uploaded PDF
+
+We'll use `pdf-parse` or a similar library to extract text from the uploaded PDF file. After extracting the text, we need to identify and segment dialogue by character names, making it easier to select roles.
+
+### User Role Selection
+
+Once the dialogue is extracted, list character names for the user to choose from, enabling the AI to take on other roles.
+
+#### Backend PDF Parsing (Node.js Example)
+
+Install `pdf-parse`:
+
+```bash
+npm install pdf-parse
+```
+
+PDF Upload API (Express Example): Here's a basic API endpoint that parses the uploaded PDF, identifies roles, and returns character options.
+
+```javascript
+const express = require('express');
+const pdfParse = require('pdf-parse');
+const fs = require('fs');
+
+const app = express();
+app.use(express.json());
+
+app.post('/upload-script', async (req, res) => {
+  const { file } = req;  // Assume file is sent in a multipart form
+
+  if (!file) {
+    return res.status(400).send("No file uploaded.");
+  }
+
+  try {
+    const dataBuffer = fs.readFileSync(file.path);
+    const pdfData = await pdfParse(dataBuffer);
+
+    const scriptText = pdfData.text;
+    const characters = extractCharacters(scriptText);
+    
+    res.json({
+      scriptText,
+      characters
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Error parsing PDF.");
+  }
+});
+
+function extractCharacters(text) {
+  const characterNames = new Set();
+  const lines = text.split('\n');
+
+  lines.forEach(line => {
+    // Simple pattern to identify character names followed by dialogue
+    const match = line.match(/^[A-Z][A-Z ]+:/);
+    if (match) {
+      characterNames.add(match[0].replace(':', '').trim());
+    }
+  });
+
+  return Array.from(characterNames);
+}
+
+app.listen(3000, () => console.log("Server running on port 3000"));
+```
+
+#### Frontend: Display Character Selection (React Example)
+
+```javascript
+import React, { useState } from 'react';
+
+const CharacterSelection = ({ characters, onSelect }) => {
+  return (
+    <div>
+      <label>Select your character:</label>
+      <select onChange={(e) => onSelect(e.target.value)}>
+        {characters.map(character => (
+          <option key={character} value={character}>{character}</option>
+        ))}
+      </select>
+    </div>
+  );
+};
+
+export default CharacterSelection;
+```
+
+## Step 3.2: Gender Selection for AI
+
+After parsing and role selection, we want to detect or let the user choose the AI's gender to make responses sound more fitting.
+
+### Simple Gender Selection (Frontend)
+
+```javascript
+import React, { useState } from 'react';
+
+const GenderSelection = ({ onSelect }) => {
+  const [gender, setGender] = useState("neutral");
+
+  const handleGenderChange = (event) => {
+    setGender(event.target.value);
+    onSelect(event.target.value);
+  };
+
+  return (
+    <div>
+      <label>Choose AI voice:</label>
+      <select value={gender} onChange={handleGenderChange}>
+        <option value="neutral">Neutral</option>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+      </select>
+    </div>
+  );
+};
+
+export default GenderSelection;
+```
+
+### Backend Logic to Use Gender Selection
+
+When making requests to the OpenAI API, incorporate the selected gender as a parameter. Here's a sample code snippet that sends the request with a role prompt based on gender.
+
+```javascript
+async function getChatResponse(scriptText, userRole, aiGender) {
+  const response = await openai.createChatCompletion({
+    model: "gpt-4-turbo",
+    messages: [
+      { role: "system", content: `You are an AI helping an actor practice their lines. Please respond with a ${aiGender} tone.` },
+      { role: "user", content: `I am playing ${userRole}. Please respond with lines for other characters.` },
+      { role: "assistant", content: scriptText },
+    ]
+  });
+  return response.data.choices[0].message.content;
+}
+```
+
+## Step 3.3: Start/Stop Reading Controls
+
+For real-time control over reading, include start/stop buttons that control the interaction.
+
+### Frontend UI for Start/Stop
+
+```javascript
+import React, { useState } from 'react';
+
+const ReadingControls = ({ onStart, onStop }) => {
+  const [isReading, setIsReading] = useState(false);
+
+  const handleStart = () => {
+    setIsReading(true);
+    onStart();
+  };
+
+  const handleStop = () => {
+    setIsReading(false);
+    onStop();
+  };
+
+  return (
+    <div>
+      {isReading ? (
+        <button onClick={handleStop}>Stop Reading</button>
+      ) : (
+        <button onClick={handleStart}>Start Reading</button>
+      )}
+    </div>
+  );
+};
+
+export default ReadingControls;
+```
+
+### Backend Logic for Start/Stop Controls (Socket-based Approach)
+
+Use WebSockets or a similar real-time communication method to initiate and terminate AI responses.
+
+```javascript
+const WebSocket = require('ws');
+
+const wss = new WebSocket.Server({ port: 8080 });
+
+wss.on('connection', (ws) => {
+  ws.on('message', (message) => {
+    if (message === 'start') {
+      // Begin sending responses
+    } else if (message === 'stop') {
+      // Stop responses
+    }
+  });
+});
+```
+
+This code provides the basic setup for each feature, allowing you to move forward with a functional real-time AI-driven app for actors. Let me know if you want to expand on any specific part!

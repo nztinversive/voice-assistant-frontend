@@ -1,0 +1,11 @@
+{
+  "name": "agent-test",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@livekit/agents": "^0.4.1",
+    "@livekit/agents-plugin-openai": "^0.4.1",
+    "@livekit/rtc-node": "^0.11.1",
+    "dotenv": "^16.4.5"
+  }
+} 
